@@ -7,10 +7,44 @@ const https = require('https');
 const socketio = require('socket.io');
 const cors = require('cors');
 const fs = require('fs');
-
+require('dotenv').config();
 
 const app = express();
 //const server = app.listen(PORT); // Create an express app
+
+const ipToLocation = ip => {
+    return new Promise((resolve, reject) => {
+        // check cache here
+
+        let request = {
+            url: `https://api.ipinfo.ai/ip/${ip}/geolocation?token=${process.env.IPINFO_AI_TOKEN}`,
+            method: 'get'
+        }
+
+        axios(request)
+        .then(response => { 
+            // add to cache here
+            resolve(response.data) })
+        .catch(error => reject(error));
+    })
+} 
+
+const sendMsgToUser = (socket, msg, data) => socket.emit(msg, data);
+
+const handleSocket = async socket => {
+    socket.on('disconnect', () => {
+        console.log(`${socket.id} has disconnected`)
+    });
+
+    socket.on('pageView', (data) => {
+        console.log('pageView', data);
+    })
+    sendMsgToUser (socket, 'welcome', { message: 'Hello!', id: socket.id });
+
+    console.log(`${socket.id} has connected`);
+
+}
+
 
 
 app.use(express.static('static'));
@@ -20,8 +54,6 @@ app.use(cors());
 app.get('/', (req, res) => {
     res.send('Hello, World!');
 });
-
-
 
 const httpsServer = https.createServer({
     key: fs.readFileSync(privateKeyPath),
@@ -39,10 +71,6 @@ const io = socketio(httpsServer, {
       methods: ["GET", "POST"]
     }
 }); // Connect socket io to the express app
-io.on('connection', (socket) => {
-  console.log(`${socket.id} has connected`);
-  
-  socket.on('disconnect', () => {
-    console.log(`${socket.id} has disconnected`)
-  });
-});
+
+io.on('connection', (socket) => handleSocket(socket));
+ 
