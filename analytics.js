@@ -33,11 +33,16 @@ httpsServer.listen(PORT, () => {
     console.log(`HTTPS Server running on port ${PORT}`);
 });
 
-// const io = socketio(httpsServer); // Connect socket io to the express app
-// io.on('connection', (socket) => {
-//   console.log(`${socket.id} has connected`);
+const io = socketio(httpsServer, {
+    cors: {
+      origin: ["https://gamma.pymnts.com", "https://pymnts.com", "https:www.pymnts.com"],
+      methods: ["GET", "POST"]
+    }
+}); // Connect socket io to the express app
+io.on('connection', (socket) => {
+  console.log(`${socket.id} has connected`);
   
-//   socket.on('disconnect', () => {
-//     console.log(`${socket.id} has disconnected`)
-//   });
-// });
+  socket.on('disconnect', () => {
+    console.log(`${socket.id} has disconnected`)
+  });
+});
