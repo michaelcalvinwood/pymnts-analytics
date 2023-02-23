@@ -7,6 +7,7 @@ const https = require('https');
 const socketio = require('socket.io');
 const cors = require('cors');
 const fs = require('fs');
+const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
@@ -37,15 +38,44 @@ const ipToLocation = ip => {
 const sendMsgToUser = (socket, msg, data) => socket.emit(msg, data);
 
 const handleSocket = async socket => {
+    socket.location = {};
+    socket.pageInfo = {
+        url: null,
+        start: null,
+    };
+
     socket.on('disconnect', () => {
         console.log(`${socket.id} has disconnected`)
     });
 
-    socket.on('pageView', (data) => {
+    socket.on('pageView', async (data) => {
         const id = socket.id;
         const ip = socket.conn.remoteAddress;
+        if (!socket.location.country) {
+            let locationData;
+            try {
+                locationData = await ipToLocation(ip);
+                socket.location.country = locationData.country;
+                socket.location.region = locationData.region;
+                socket.location.city = locationData.city;
 
-        console.log('pageView', id, ip, currentTime, data);
+                console.log('location', locationData);
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        data.country = socket.location.country;
+        data.region = socket.location.region;
+        data.city = socket.location.city;
+
+        if (data.url !== socket.pageInfo.url) {
+            console.log('NEW PAGE', data.url);
+            socket.pageInfo.url = data.url;
+            socket.start = currentTime;
+        }
+        
+        console.log('pageView', id, currentTime, data);
     })
     sendMsgToUser (socket, 'welcome', { message: 'Hello!', id: socket.id });
 
