@@ -10,8 +10,46 @@ const fs = require('fs');
 const axios = require('axios');
 require('dotenv').config();
 
+const csv = require('csv-array');
+const bs = require("binary-search");
+let GoogleIds = null;
+
+
+
+
+const getGoogleCode = (city, country) => {
+    let test = bs(GoogleIds, city, (key, target) => {
+        if (key[1].toLowerCase() > target.toLowerCase()) return 1;
+        if (key[1].toLowerCase() < target.toLocaleLowerCase()) return -1;
+        return 0;
+    });
+
+    if (test > 0) return GoogleIds[test][0];
+    
+    return country;
+
+
+}
+
+csv.parseCSV("geotargets.csv", function(data){
+    GoogleIds = data;
+    GoogleIds.shift();
+    GoogleIds.sort((a, b) => {
+        if (a[1] > b[1]) return 1;
+        if (a[1] < b[1]) return -1;
+        return 0;
+    })
+    
+    for (let i = 0; i < 10; ++i) {
+        console.log(JSON.stringify(GoogleIds[i]));
+    }
+}, false);
+
+
 const app = express();
 //const server = app.listen(PORT); // Create an express app
+
+
 
 let currentTime = Date.now();
 setInterval(() => {
@@ -47,6 +85,25 @@ const recordPageTime = socket => {
     if (timeOnPage < 15000) timeOnPage = 15000;
 
     return new Promise((resolve, reject) => {
+        const g3Id = hostname === 'gamma.pymnts.com' ? 'UA-11167465-10' : 'UA-11167465-1';
+        const g4Id = hostname === 'gamma.pymnts.com' ? 'G-NY60TDWHJ9' : 'G-3WHRCQ5780';
+
+        let params = {
+            v: 1,
+            t: 'pageview',
+            tid: g3Id,
+            cid: deviceId,
+            dh: hostname,
+            dp: url,
+            dt: title,
+            dr: referrer,
+            geoid: country,
+
+        }
+
+        console.log('ids', g3Id, g4Id);
+
+
         console.log(`${timeOnPage} milliseconds spent on https://${hostname}${url}`, country, region, city, title, referrer, deviceId, deviceType, browser);
     
         resolve('okay');
