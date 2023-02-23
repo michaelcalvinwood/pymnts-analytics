@@ -39,12 +39,15 @@ const sendMsgToUser = (socket, msg, data) => socket.emit(msg, data);
 
 const recordPageTime = socket => {
     if (!socket.pageInfo.url) return;
-    const url = socket.pageInfo.url;
-    const start = socket.pageInfo.start;
+    const { url, start, title, referrer, hostname } = socket.pageInfo;
+    const { country, region, city } = socket.location;
+    const { deviceId, deviceType, browser } = socket.userInfo;
+    let timeOnPage = currentTime - start;
+        
+    if (timeOnPage < 15000) timeOnPage = 15000;
 
     return new Promise((resolve, reject) => {
-        const timeOnPage = currentTime - start;
-        console.log(`${timeOnPage} milliseconds spent on ${url}`);
+        console.log(`${timeOnPage} milliseconds spent on https://${hostname}${url}`, country, region, city, title, referrer, deviceId, deviceType, browser);
     
         resolve('okay');
     })
@@ -56,6 +59,7 @@ const handleSocket = async socket => {
         url: null,
         start: null,
     };
+    socket.userInfo = {};
 
     socket.on('disconnect', () => {
         console.log(`${socket.id} has disconnected`)
@@ -65,6 +69,10 @@ const handleSocket = async socket => {
     socket.on('pageView', async (data) => {
         const id = socket.id;
         const ip = socket.conn.remoteAddress;
+
+        /*
+         * add location info to socket if not already there
+         */
         if (!socket.location.country) {
             let locationData;
             try {
@@ -73,26 +81,33 @@ const handleSocket = async socket => {
                 socket.location.region = locationData.region;
                 socket.location.city = locationData.city;
 
-                console.log('location', locationData);
+                //console.log('location', locationData);
             } catch(e) {
                 console.error(e);
             }
         }
 
-        data.country = socket.location.country;
-        data.region = socket.location.region;
-        data.city = socket.location.city;
+        /*
+         * add user info to socket
+         */
 
-        if (data.url !== socket.pageInfo.url) {
-            console.log('NEW PAGE', data.url);
+        socket.userInfo.deviceId = data.deviceId;
+        socket.userInfo.deviceType = data.deviceType;
+        socket.userInfo.browser = data.browser;
         
-            recordPageTime(socket);
+        if (data.url !== socket.pageInfo.url) {
+            //console.log('NEW PAGE', data.url);
+        
+            if (socket.pageInfo.url !== null) recordPageTime(socket);
 
             socket.pageInfo.url = data.url;
             socket.pageInfo.start = currentTime;
+            socket.pageInfo.title = data.title;
+            socket.pageInfo.referrer = data.referrer;
+            socket.pageInfo.hostname = data.hostname;
         }
 
-        console.log('pageView', id, currentTime, data);
+        //console.log('pageView', id, socket.location, socket.userInfo, socket.pageInfo);
     })
     sendMsgToUser (socket, 'welcome', { message: 'Hello!', id: socket.id });
 
