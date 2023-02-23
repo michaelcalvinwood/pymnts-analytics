@@ -12,6 +12,11 @@ require('dotenv').config();
 const app = express();
 //const server = app.listen(PORT); // Create an express app
 
+let currentTime = Date.now();
+setInterval(() => {
+    currentTime = Date.now();
+}, 1000);
+
 const ipToLocation = ip => {
     return new Promise((resolve, reject) => {
         // check cache here
@@ -37,7 +42,10 @@ const handleSocket = async socket => {
     });
 
     socket.on('pageView', (data) => {
-        console.log('pageView', data);
+        const id = socket.id;
+        const ip = socket.conn.remoteAddress;
+
+        console.log('pageView', id, ip, currentTime, data);
     })
     sendMsgToUser (socket, 'welcome', { message: 'Hello!', id: socket.id });
 
