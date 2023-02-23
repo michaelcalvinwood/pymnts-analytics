@@ -37,6 +37,19 @@ const ipToLocation = ip => {
 
 const sendMsgToUser = (socket, msg, data) => socket.emit(msg, data);
 
+const recordPageTime = socket => {
+    if (!socket.pageInfo.url) return;
+    const url = socket.pageInfo.url;
+    const start = socket.pageInfo.start;
+
+    return new Promise((resolve, reject) => {
+        const timeOnPage = currentTime - start;
+        console.log(`${timeOnPage} milliseconds spent on ${url}`);
+    
+        resolve('okay');
+    })
+}
+
 const handleSocket = async socket => {
     socket.location = {};
     socket.pageInfo = {
@@ -46,6 +59,7 @@ const handleSocket = async socket => {
 
     socket.on('disconnect', () => {
         console.log(`${socket.id} has disconnected`)
+        recordPageTime(socket);
     });
 
     socket.on('pageView', async (data) => {
@@ -71,10 +85,13 @@ const handleSocket = async socket => {
 
         if (data.url !== socket.pageInfo.url) {
             console.log('NEW PAGE', data.url);
-            socket.pageInfo.url = data.url;
-            socket.start = currentTime;
-        }
         
+            recordPageTime(socket);
+
+            socket.pageInfo.url = data.url;
+            socket.pageInfo.start = currentTime;
+        }
+
         console.log('pageView', id, currentTime, data);
     })
     sendMsgToUser (socket, 'welcome', { message: 'Hello!', id: socket.id });
