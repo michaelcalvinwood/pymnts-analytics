@@ -14,9 +14,6 @@ const csv = require('csv-array');
 const bs = require("binary-search");
 let GoogleIds = null;
 
-
-
-
 const getGoogleCode = (city, country) => {
     let test = bs(GoogleIds, city, (key, target) => {
         if (key[1].toLowerCase() > target.toLowerCase()) return 1;
@@ -27,8 +24,6 @@ const getGoogleCode = (city, country) => {
     if (test > 0) return GoogleIds[test][0];
     
     return country;
-
-
 }
 
 csv.parseCSV("geotargets.csv", function(data){
@@ -40,16 +35,12 @@ csv.parseCSV("geotargets.csv", function(data){
         return 0;
     })
     
-    for (let i = 0; i < 10; ++i) {
-        console.log(JSON.stringify(GoogleIds[i]));
-    }
+    
 }, false);
 
 
 const app = express();
 //const server = app.listen(PORT); // Create an express app
-
-
 
 let currentTime = Date.now();
 setInterval(() => {
@@ -77,7 +68,7 @@ const sendMsgToUser = (socket, msg, data) => socket.emit(msg, data);
 
 const recordPageTime = socket => {
     if (!socket.pageInfo.url) return;
-    const { url, start, title, referrer, hostname } = socket.pageInfo;
+    const { url, start, title, referrer, hostname, userAgent } = socket.pageInfo;
     const { country, region, city } = socket.location;
     const { deviceId, deviceType, browser } = socket.userInfo;
     let timeOnPage = currentTime - start;
@@ -87,22 +78,88 @@ const recordPageTime = socket => {
     return new Promise((resolve, reject) => {
         const g3Id = hostname === 'gamma.pymnts.com' ? 'UA-11167465-10' : 'UA-11167465-1';
         const g4Id = hostname === 'gamma.pymnts.com' ? 'G-NY60TDWHJ9' : 'G-3WHRCQ5780';
+        const apiSecret = hostname === 'gamma.pymnts.com' ? 'LSPWrwHwTyKhghOCL2PqRA' : 'dlnjCX6cQmSqk73YzmIXsg';
+        console.log('ids', g3Id, g4Id);
 
+        /*
+         * Send to UA (GA3)
+         */
         let params = {
             v: 1,
             t: 'pageview',
             tid: g3Id,
             cid: deviceId,
             dh: hostname,
-            dp: url,
-            dt: title,
+            dp: url.indexOf('?') === -1 ? `${url}?ppp=true` : `${url}&ppp=true`,
+            dt: title.replaceAll(' ', '-'),
             dr: referrer,
-            geoid: country,
-
+            geoid: getGoogleCode(city, country),
+            ua: userAgent
         }
 
-        console.log('ids', g3Id, g4Id);
+        let request = {
+            url: 'https://www.google-analytics.com/collect',
+            method: 'post',
+            params
+        }
 
+        console.log('request', request);
+        
+        axios(request)
+        .then(response => console.log('GA3 Success!'))
+        .catch(error => console.error('GA3 Error', error));
+
+        /*
+         * Send to GA4
+         */
+        params = {
+            api_secret: apiSecret,
+            measurement_id: g4Id,
+            uc: 'US'
+        }
+
+        let data = {
+            client_id: 'pymnts_rt_proxy',
+            user_id: deviceId,
+            events: [
+                {
+                    name: 'page_view',
+                    params: {
+                        engagement_time_msec: timeOnPage,
+                        page_location: `https://${hostname}${url.indexOf('?') === -1 ? `${url}?ppp=true` : `${url}&ppp=true`}`,
+                        page_path: url.indexOf('?') === -1 ? `${url}?ppp=true` : `${url}&ppp=true`,
+                        page_title: title.replaceAll(' ', '-'),
+                        page_referrer: referrer,
+                        user_agent: browser,
+                        
+                    }
+                },
+                {
+                    name: 'pymnts_rt_proxy',
+                    params: {
+                        blocked_visitor: 1,
+                        user_agent: browser,
+                        country,
+                        region,
+                        city
+                    }
+                }
+
+            ]
+        }
+
+        request = {
+            url: "https://www.google-analytics.com/mp/collect",
+            method: "post",
+            params,
+            data
+        }
+
+        console.log("G4 Request: ", JSON.stringify(request,null, 4));
+
+        axios(request)
+        .then(response => console.log('GA4 Success!'))
+        .catch(error => console.error('GA4 Error', error));
 
         console.log(`${timeOnPage} milliseconds spent on https://${hostname}${url}`, country, region, city, title, referrer, deviceId, deviceType, browser);
     
@@ -162,6 +219,7 @@ const handleSocket = async socket => {
             socket.pageInfo.title = data.title;
             socket.pageInfo.referrer = data.referrer;
             socket.pageInfo.hostname = data.hostname;
+            socket.pageInfo.userAgent = data.userAgent;
         }
 
         //console.log('pageView', id, socket.location, socket.userInfo, socket.pageInfo);
