@@ -129,8 +129,7 @@ const recordPageTime = socket => {
                         page_location: `https://${hostname}${url.indexOf('?') === -1 ? `${url}?ppp=true` : `${url}&ppp=true`}`,
                         page_path: url.indexOf('?') === -1 ? `${url}?ppp=true` : `${url}&ppp=true`,
                         page_title: title.replaceAll(' ', '-'),
-                        page_referrer: referrer,
-                        user_agent: browser,
+                        page_referrer: referrer
                         
                     }
                 },
@@ -252,7 +251,7 @@ httpsServer.listen(PORT, () => {
 
 const io = socketio(httpsServer, {
     cors: {
-      origin: ["https://gamma.pymnts.com", "https://pymnts.com", "https:www.pymnts.com"],
+      origin: ["https://gamma.pymnts.com", "https://pymnts.com", "https://www.pymnts.com"],
       methods: ["GET", "POST"]
     }
 }); // Connect socket io to the express app
