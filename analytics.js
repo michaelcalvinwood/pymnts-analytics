@@ -143,7 +143,6 @@ const recordPageTime = socket => {
                         city
                     }
                 }
-
             ]
         }
 
@@ -228,8 +227,6 @@ const handleSocket = async socket => {
     console.log(`${socket.id} has connected`);
 
 }
-
-
 
 app.use(express.static('static'));
 app.use(express.json({limit: '200mb'})); 
