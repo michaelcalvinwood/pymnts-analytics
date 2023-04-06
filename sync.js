@@ -1,18 +1,49 @@
-const PORT = 5100;
-const privateKeyPath = `/etc/ssl-keys/pymnts.com/pymnts.key`;
-const fullchainPath = `/etc/ssl-keys/pymnts.com/pymnts.com.pem`;
-
-const express = require('express');
-const https = require('https');
-const socketio = require('socket.io');
-const cors = require('cors');
-const fs = require('fs');
 const axios = require('axios');
 require('dotenv').config();
 
 const csv = require('csv-array');
 const bs = require("binary-search");
 let GoogleIds = null;
+
+// Setup MYSQL
+
+const mysql = require('mysql2');
+
+const pool = mysql.createPool({
+    connectionLimit : 100, //important
+    host     : process.env.MYSQL_HOST,
+    user     : process.env.MYSQL_USER,
+    password : process.env.MYSQL_PASSWORD,
+    database : process.env.MYSQL_DATABASE,
+    debug    :  false
+});
+
+let databaseReady = false;
+
+pool.query("SHOW DATABASES",(err, data) => {
+    if(err) {
+        console.error(err);
+        return;
+    }
+    // rows fetch
+    console.log(data);
+    databaseReady = true;
+});
+
+const mysqlQuery = query => {
+  return new Promise ((resolve, reject) => {
+    pool.query(query,(err, data) => {
+      if(err) {
+          console.error(err);
+          return reject(err);
+      }
+      // rows fetch
+      //console.log(data);
+      return resolve(data);
+  });
+  })
+}
+
 
 const getGoogleCode = (city, country) => {
     let test = bs(GoogleIds, city, (key, target) => {
