@@ -104,7 +104,7 @@ async function sendG3PageView (hostname, url, clientId, meta) {
     }
 }
 
-async function sendG4PageView (hostname, url, deviceId, timeOnPage, title = '', userAgent = 'unknown', referrer = 'unknown', country = 'unknown', region = 'unknown', city = 'unknown') {
+async function sendG4PageView (hostname, url, deviceId, timeOnPage, meta) {
     const g4Id = hostname === 'gamma.pymnts.com' ? 'G-NY60TDWHJ9' : 'G-3WHRCQ5780';
     const apiSecret = hostname === 'gamma.pymnts.com' ? 'LSPWrwHwTyKhghOCL2PqRA' : 'dlnjCX6cQmSqk73YzmIXsg';
       /*
@@ -125,24 +125,25 @@ async function sendG4PageView (hostname, url, deviceId, timeOnPage, title = '', 
                 params: {
                     engagement_time_msec: timeOnPage,
                     page_location: `https://${hostname}${url.indexOf('?') === -1 ? `${url}?ppp=true` : `${url}&ppp=true`}`,
-                    page_path: url.indexOf('?') === -1 ? `${url}?ppp=true` : `${url}&ppp=true`,
-                    page_title: title.replaceAll(' ', '-'),
-                    page_referrer: referrer
-                    
+                    page_path: url.indexOf('?') === -1 ? `${url}?ppp=true` : `${url}&ppp=true`, 
                 }
             },
             {
-                name: 'pymnts_rt_proxy',
+                name: 'pymnts_sync_proxy',
                 params: {
                     blocked_visitor: 1,
-                    user_agent: userAgent,
-                    country,
-                    region,
-                    city
                 }
-            }
+            },
+            
         ]
     }
+
+    if (meta.referrer) data.events[0].params.page_referrer = meta.referrer;
+    if (meta.title) data.events[0].params.page_title = meta.title;
+    if (meta.userAgent) data.events[1].params.user_agent = meta.userAgent;
+    if (meta.country) data.events[1].params.country = meta.country;
+    if (meta.region) data.events[1].params.region = meta.region;
+    if (meta.city) data.events[1].params.city = meta.city;
 
     request = {
         url: "https://www.google-analytics.com/mp/collect",
@@ -164,8 +165,11 @@ async function sendG4PageView (hostname, url, deviceId, timeOnPage, title = '', 
 
 }
 
-sendG3PageView('gamma.pymnts.com', '/test/url', '99c48053-7ec2-4898-b91f-4255502fb981', {
-    title: 'Wow: Amazing Article',
-    userAgent: "Incredible Browser",
+// sendG3PageView('gamma.pymnts.com', '/test/url', '99c48053-7ec2-4898-b91f-4255502fb981', {
+//     title: 'Wow: Amazing Article',
+//     userAgent: "Incredible Browser",
+// });
+sendG4PageView('gamma.pymnts.com', '/test/url/', '99c48053-7ec2-4898-b91f-4255502fb981', 60000, {
+    title: 'Another amazing artile',
+    userAgent: 'Another incredible browser'
 });
-//sendG4PageView('gamma.pymnts.com', '/test/url/', '99c48053-7ec2-4898-b91f-4255502fb981', 60000, 'Test URL', 'Amazing Browser');
