@@ -121,6 +121,10 @@ async function sendG3PageView (hostname, url, clientId, meta) {
     if (meta.referrer) params.dr = meta.referrer;
     if (meta.city && meta.country) params.geoid = getGoogleCode(meta.city, meta.country);
     if (meta.userAgent) params.ua = meta.userAgent;
+    if (meta.ts) {
+        const queueTime = Date.now() - meta.ts;
+        params.qt = queueTime;
+    }
 
      let request = {
             url: 'https://www.google-analytics.com/collect',
