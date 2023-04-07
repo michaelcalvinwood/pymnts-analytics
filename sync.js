@@ -111,6 +111,7 @@ async function sendG3PageView (hostname, url, clientId, meta) {
     if (meta.city && meta.country) params.geoid = getGoogleCode(meta.city, meta.country);
     if (meta.userAgent) params.ua = meta.userAgent;
     if (meta.ts) {
+        console.log('meta.ts', meta.ts, Date.now(), Date.now() - meta.ts);
         const queueTime = Date.now() - meta.ts;
         params.qt = queueTime;
     }
@@ -121,7 +122,9 @@ async function sendG3PageView (hostname, url, clientId, meta) {
             params
     }
 
-    console.log('request', request);
+    console.log('G3 request', request);
+
+    return;
     
     let response;
 
@@ -210,8 +213,8 @@ async function sendG4PageView (hostname, url, deviceId, timeOnPage, meta) {
 //     userAgent: 'Another incredible browser'
 // });
 
-const doStuff = async (minutes = 10) => {
-    const table = 'page_visit_2023_04_07';
+const syncTable = async (table, minutes = 10) => {
+   
     const ts = Math.trunc(Date.now() / 1000);
 
     console.log('timestamp', ts);
@@ -263,12 +266,30 @@ const doStuff = async (minutes = 10) => {
 
         console.log('metaData', metaData);
 
+        // sop = secondsOnPage
+
         let meta = metaData[0].meta ? JSON.parse(metaData[0].meta) : {
             ts: 0,
-            top: 0
+            sop: 0
         }
 
         const title = await getPageTitle (`https://www.pymnts.com${pages[i].path}`);
+
+        // compute secondsOnPage
+
+        const secondsOnPage = anotherPage ? pages[i+1].ts - pages[i].ts : 15;
+
+        // compute timestamp and time on page
+        const visitedTs = pages[i].ts;
+
+        // if real timestamp > meta then we can use the real timestamp
+        let ts;
+
+        if (visitedTs > (meta.ts + meta.sop)) {
+            ts = visitedTs * 1000;
+        } else {
+            ts = (meta.ts + meta.sop) * 1000;
+        }
 
         const host = 'gamma.pymnts.com';
         const url = pages[i].path;
@@ -276,15 +297,33 @@ const doStuff = async (minutes = 10) => {
         const g3Meta = {
             userAgent: metaData[0].user_agent,
             title,
-            ts: 2000
+            ts
         }
 
         console.log('info', host, url, clientId, g3Meta);
        
+        sendG3PageView (host, url, clientId, g3Meta);
 
         break;
     }
     
 }
 
-doStuff();
+async function doSync () {
+    let q = `SHOW TABLES`;
+
+    let result;
+
+    try {
+        result = await mysqlQuery(q);
+
+    } catch (err) {
+        return console.error(err);
+    }
+
+    const tables = result.map(table => table.Tables_in_page_visits).sort();
+
+    console.log('tables', result, tables);
+}
+
+doSync();
