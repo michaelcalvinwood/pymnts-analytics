@@ -69,7 +69,7 @@ csv.parseCSV("geotargets.csv", function(data){
     
 }, false);
 
-async function sendG3PageView (hostname, url, clientId, title, userAgent = '', referrer = '',  country = '', city = '',) {
+async function sendG3PageView (hostname, url, clientId, meta) {
      const webPropertyId = hostname === 'gamma.pymnts.com' ? 'UA-11167465-10' : 'UA-11167465-1';
 
      const params = {
@@ -79,11 +79,12 @@ async function sendG3PageView (hostname, url, clientId, title, userAgent = '', r
         dh: hostname,
         cid: clientId,
         dp: url.indexOf('?') === -1 ? `${url}?ppp=true` : `${url}&ppp=true`,
-        dt: title.replaceAll(' ', '-'),
-        dr: referrer,
-        geoid: city && country ? getGoogleCode(city, country) : '',
-        ua: userAgent
      }
+
+    if (meta.title) params.dt = meta.title.replaceAll(' ', '-');
+    if (meta.referrer) params.dr = meta.referrer;
+    if (meta.city && meta.country) params.geoid = getGoogleCode(meta.city, meta.country);
+    if (meta.userAgent) params.ua = meta.userAgent;
 
      let request = {
             url: 'https://www.google-analytics.com/collect',
@@ -163,5 +164,8 @@ async function sendG4PageView (hostname, url, deviceId, timeOnPage, title = '', 
 
 }
 
-//sendG3PageView('gamma.pymnts.com', '/test/url', '99c48053-7ec2-4898-b91f-4255502fb981', 'Test Url', 'Amazing Browser');
-sendG4PageView('gamma.pymnts.com', '/test/url/', '99c48053-7ec2-4898-b91f-4255502fb981', 60000, 'Test URL', 'Amazing Browser');
+sendG3PageView('gamma.pymnts.com', '/test/url', '99c48053-7ec2-4898-b91f-4255502fb981', {
+    title: 'Wow: Amazing Article',
+    userAgent: "Incredible Browser",
+});
+//sendG4PageView('gamma.pymnts.com', '/test/url/', '99c48053-7ec2-4898-b91f-4255502fb981', 60000, 'Test URL', 'Amazing Browser');
