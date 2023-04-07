@@ -44,6 +44,42 @@ const mysqlQuery = query => {
   })
 }
 
+const doStuff = async (minutes = 10) => {
+    const table = 'page_visit_2023_04_07';
+    const ts = Math.trunc(Date.now() / 1000);
+
+    console.log('timestamp', ts);
+
+    let q = `SELECT DISTINCT(${table}.uuid)
+    FROM ${table}
+    INNER JOIN device_info ON ${table}.uuid = device_info.uuid
+    WHERE device_info.is_blocking = 'true'`;
+
+    let result;
+
+    try {
+        result = await mysqlQuery(q);
+    } catch (err) {
+        return console.error(err);
+    }
+
+    const uuids = result.map(uuid => {
+        return uuid.uuid;
+    })
+
+    q = `SELECT path, ts, status FROM ${table} WHERE uuid = '${uuids[0]}'`;
+
+    try {
+        result = await mysqlQuery(q);
+    } catch (err) {
+        return console.error(err);
+    }
+
+    console.log(result);
+}
+
+doStuff();
+
 
 const getGoogleCode = (city, country) => {
     let test = bs(GoogleIds, city, (key, target) => {
@@ -176,7 +212,7 @@ async function sendG4PageView (hostname, url, deviceId, timeOnPage, meta) {
 //     title: 'Wow: Amazing Article',
 //     userAgent: "Incredible Browser",
 // });
-sendG4PageView('gamma.pymnts.com', '/test/url/', '99c48053-7ec2-4898-b91f-4255502fb981', 60000, {
-    title: 'Another amazing artile',
-    userAgent: 'Another incredible browser'
-});
+// sendG4PageView('gamma.pymnts.com', '/test/url/', '99c48053-7ec2-4898-b91f-4255502fb981', 60000, {
+//     title: 'Another amazing artile',
+//     userAgent: 'Another incredible browser'
+// });
