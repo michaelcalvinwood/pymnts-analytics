@@ -187,6 +187,8 @@ async function sendG4PageView (hostname, url, deviceId, timeOnPage, meta) {
     if (meta.country) data.events[1].params.country = meta.country;
     if (meta.region) data.events[1].params.region = meta.region;
     if (meta.city) data.events[1].params.city = meta.city;
+    if (meta.ts) data.timestamp_micros = meta.ts * 1000;
+
 
     request = {
         url: "https://www.google-analytics.com/mp/collect",
