@@ -134,7 +134,14 @@ async function sendG4PageView (hostname, url, deviceId, timeOnPage, meta) {
                     blocked_visitor: 1,
                 }
             },
-            
+            {
+                name: 'pymnts_device_visit',
+                params: {
+                    path: url,
+                    device: deviceId,
+                    pymnts_device_visit: `${deviceId}--${url}`
+                }
+            }
         ]
     }
 
