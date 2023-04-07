@@ -1,5 +1,6 @@
 const axios = require('axios');
 require('dotenv').config();
+const cheerio = require('cheerio');
 
 const csv = require('csv-array');
 const bs = require("binary-search");
@@ -44,41 +45,29 @@ const mysqlQuery = query => {
   })
 }
 
-const doStuff = async (minutes = 10) => {
-    const table = 'page_visit_2023_04_07';
-    const ts = Math.trunc(Date.now() / 1000);
 
-    console.log('timestamp', ts);
+const getPageTitle = async url => {
+    let response;
 
-    let q = `SELECT DISTINCT(${table}.uuid)
-    FROM ${table}
-    INNER JOIN device_info ON ${table}.uuid = device_info.uuid
-    WHERE device_info.is_blocking = 'true'`;
-
-    let result;
-
-    try {
-        result = await mysqlQuery(q);
-    } catch (err) {
-        return console.error(err);
+    let request = {
+        url,
+        method: 'get'
     }
 
-    const uuids = result.map(uuid => {
-        return uuid.uuid;
-    })
-
-    q = `SELECT path, ts, status FROM ${table} WHERE uuid = '${uuids[0]}'`;
-
     try {
-        result = await mysqlQuery(q);
+        response = await axios(request);
     } catch (err) {
-        return console.error(err);
+        console.error(err);
+        return '';
     }
 
-    console.log(result);
+    let html = response.data;
+
+    var $ = cheerio.load(html);
+    var title = $("title").text();
+
+    return title;
 }
-
-doStuff();
 
 
 const getGoogleCode = (city, country) => {
@@ -192,8 +181,6 @@ async function sendG4PageView (hostname, url, deviceId, timeOnPage, meta) {
     if (meta.region) data.events[1].params.region = meta.region;
     if (meta.city) data.events[1].params.city = meta.city;
     if (meta.ts) data.timestamp_micros = meta.ts * 1000;
-
-
     request = {
         url: "https://www.google-analytics.com/mp/collect",
         method: "post",
@@ -222,3 +209,82 @@ async function sendG4PageView (hostname, url, deviceId, timeOnPage, meta) {
 //     title: 'Another amazing artile',
 //     userAgent: 'Another incredible browser'
 // });
+
+const doStuff = async (minutes = 10) => {
+    const table = 'page_visit_2023_04_07';
+    const ts = Math.trunc(Date.now() / 1000);
+
+    console.log('timestamp', ts);
+
+    let q = `SELECT DISTINCT(${table}.uuid), device_info.user_agent, device_info.meta
+    FROM ${table}
+    INNER JOIN device_info ON ${table}.uuid = device_info.uuid
+    WHERE device_info.is_blocking = 'true'`;
+
+    let devices;
+
+    try {
+        devices = await mysqlQuery(q);
+    } catch (err) {
+        return console.error(err);
+    }
+
+    q = `SELECT uuid, path, ts, status FROM ${table} WHERE uuid = '${devices[0].uuid}'`;
+
+    let pages;
+
+    try {
+        pages = await mysqlQuery(q);
+    } catch (err) {
+        return console.error(err);
+    }
+
+    for (let i = 0; i < pages.length; ++i) {
+        let cutoff = Date.now() - (10 * 60 * 1000);
+        if (pages.ts > cutoff) continue;
+
+        if (pages.status === 'reported') continue;
+
+        // do we have another page?
+        let anotherPage = i < (pages.length - 1) ? true : false;
+
+        // get device meta info
+
+        q = `SELECT meta, user_agent FROM device_info WHERE uuid = '${pages[i].uuid}'`;
+
+        let metaData;
+
+        try {
+            metaData = await mysqlQuery(q);
+        } catch (err) {
+            console.error(err);
+            continue;
+        }
+
+        console.log('metaData', metaData);
+
+        let meta = metaData[0].meta ? JSON.parse(metaData[0].meta) : {
+            ts: 0,
+            top: 0
+        }
+
+        const title = await getPageTitle (`https://www.pymnts.com${pages[i].path}`);
+
+        const host = 'gamma.pymnts.com';
+        const url = pages[i].path;
+        const clientId = pages[i].uuid;
+        const g3Meta = {
+            userAgent: metaData[0].user_agent,
+            title,
+            ts: 2000
+        }
+
+        console.log('info', host, url, clientId, g3Meta);
+       
+
+        break;
+    }
+    
+}
+
+doStuff();
